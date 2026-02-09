@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'core/auth/auth_state.dart';
 import 'core/auth/auth_guard.dart';
-import 'core/ui/app_scaffold.dart';
-
+import 'core/auth/auth_state.dart';
 import 'core/auth/me_response.dart';
 import 'core/auth/session_storage.dart';
+import 'core/auth/tenant_resolver.dart';
 import 'core/network/api_client.dart';
 import 'core/auth/auth_service.dart';
+import 'core/ui/app_scaffold.dart';
 
 import 'features/auth/pages/login_page.dart';
 import 'features/dashboard_empresa/pages/home_empresa_page.dart';
@@ -51,17 +51,23 @@ class _MyAppState extends State<MyApp> {
       final auth = AuthService(api);
 
       final meRes = await auth.me();
+      final tenant = resolveTenant(meRes);
 
       setState(() {
         me = meRes;
         session = EmpresaSession(
           token: token,
-          empresaNombre: 'Mi Empresa', // luego lo hacemos dinámico por scope
+          tenantLabel: tenant.tenantLabel,
+          tenantNombre: tenant.tenantNombre, // placeholder por ahora
+          userNombre: meRes.nombreCompleto,
+          userEmail: meRes.email,
+          rol: tenant.rol,
+          scopeTipo: tenant.scopeTipo,
+          scopeId: tenant.scopeId,
         );
         booting = false;
       });
-    } catch (e) {
-      // ✅ Si token inválido/expirado -> limpiar y volver a login
+    } catch (_) {
       await storage.clear();
       setState(() {
         session = null;
@@ -74,9 +80,20 @@ class _MyAppState extends State<MyApp> {
   Future<void> _onLoggedIn(String token, MeResponse meRes) async {
     await storage.saveToken(token);
 
+    final tenant = resolveTenant(meRes);
+
     setState(() {
       me = meRes;
-      session = EmpresaSession(token: token, empresaNombre: 'Mi Empresa');
+      session = EmpresaSession(
+        token: token,
+        tenantLabel: tenant.tenantLabel,
+        tenantNombre: tenant.tenantNombre, // placeholder por ahora
+        userNombre: meRes.nombreCompleto,
+        userEmail: meRes.email,
+        rol: tenant.rol,
+        scopeTipo: tenant.scopeTipo,
+        scopeId: tenant.scopeId,
+      );
     });
   }
 
@@ -103,15 +120,8 @@ class _MyAppState extends State<MyApp> {
                       session: session!,
                       current: EmpresaNavItem.home,
                       onSelect: (_) {},
-                      child: Column(
-                        children: [
-                          Expanded(child: HomeEmpresaPage(session: session!)),
-                          TextButton(
-                            onPressed: _logout,
-                            child: const Text('Cerrar sesión'),
-                          ),
-                        ],
-                      ),
+                      onLogout: _logout, // ✅ ahora centralizado
+                      child: HomeEmpresaPage(session: session!),
                     ),
                   )),
     );

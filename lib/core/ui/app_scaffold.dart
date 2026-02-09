@@ -9,12 +9,16 @@ class AppScaffold extends StatelessWidget {
   final Widget child;
   final ValueChanged<EmpresaNavItem> onSelect;
 
+  // ✅ nuevo: logout real desde main
+  final VoidCallback onLogout;
+
   const AppScaffold({
     super.key,
     required this.session,
     required this.current,
     required this.child,
     required this.onSelect,
+    required this.onLogout,
   });
 
   String _title(EmpresaNavItem item) {
@@ -52,10 +56,39 @@ class AppScaffold extends StatelessWidget {
               ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.business)),
                 title: Text(
-                  session.empresaNombre,
+                  session.tenantNombre, // ✅ antes: empresaNombre
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text('Panel Empresa'),
+                subtitle: Text('${session.tenantLabel} • ${session.rol}'),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Row(
+                  children: [
+                    const CircleAvatar(child: Icon(Icons.person)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            session.userNombre,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            session.userEmail,
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Divider(),
               ...menuItems.map((item) {
@@ -74,12 +107,7 @@ class AppScaffold extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Cerrar sesión'),
-                onTap: () {
-                  // luego conectamos logout real
-                  Navigator.of(
-                    context,
-                  ).pushNamedAndRemoveUntil('/login', (_) => false);
-                },
+                onTap: onLogout, // ✅ ahora es real
               ),
             ],
           ),
@@ -89,7 +117,7 @@ class AppScaffold extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('ADAdmin • ${session.empresaNombre}'),
+        title: Text('ADAdmin • ${session.tenantNombre}'),
         actions: [
           IconButton(
             tooltip: 'Notificaciones',
@@ -98,11 +126,7 @@ class AppScaffold extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'logout') {
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/login', (_) => false);
-              }
+              if (value == 'logout') onLogout();
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'account', child: Text('Mi cuenta')),
@@ -110,9 +134,15 @@ class AppScaffold extends StatelessWidget {
               PopupMenuDivider(),
               PopupMenuItem(value: 'logout', child: Text('Cerrar sesión')),
             ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: CircleAvatar(child: Icon(Icons.person)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: CircleAvatar(
+                child: Text(
+                  session.userNombre.isNotEmpty
+                      ? session.userNombre[0].toUpperCase()
+                      : 'U',
+                ),
+              ),
             ),
           ),
         ],
@@ -127,7 +157,6 @@ class AppScaffold extends StatelessWidget {
         ],
       ),
 
-      // En móvil, bottom bar tipo “Instagram”
       bottomNavigationBar: isWide
           ? null
           : BottomNavigationBar(
